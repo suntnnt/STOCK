@@ -8,106 +8,130 @@ from datetime import datetime
 import re
 
 # ==========================================
-# 0. 页面配置与 UI 样式
+# 0. 页面配置与 UI 样式 (深色专业版)
 # ==========================================
 
 st.set_page_config(
-    page_title="股票自动多智能分析系统",
+    page_title="股票多智能体分析系统",
     layout="wide",
     page_icon="📈",
     initial_sidebar_state="expanded"
 )
 
-# 注入 CSS：优化后的 UI
+# 注入 CSS：深色渐变 + 科技线条 + 同花顺风格
 st.markdown("""
 <style>
-    /* 1. 全局背景 */
+    /* 1. 全局背景：深色渐变 + 网格纹理 */
     .stApp {
-        background-color: #F5F5F7;
-        color: #1D1D1F;
+        background-color: #0E1117;
+        background-image: 
+            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            radial-gradient(circle at 50% 0%, #1e1e24 0%, #0E1117 80%);
+        background-size: 40px 40px, 40px 40px, 100% 100%;
+        color: #E0E0E0;
     }
     
-    /* 2. 侧边栏 */
+    /* 2. 侧边栏：深灰磨砂 */
     [data-testid="stSidebar"] {
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #E5E5E5;
+        background-color: #161920 !important;
+        border-right: 1px solid #2D3748;
     }
     
-    /* 3. 卡片样式 */
+    /* 3. 卡片样式：深色毛玻璃 (Glassmorphism) */
     .agent-card {
-        background: #FFFFFF;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        border-radius: 16px;
-        padding: 20px;
+        background: rgba(30, 34, 45, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 18px;
         margin-bottom: 16px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-        height: 380px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        height: 360px;
         overflow-y: auto;
         display: flex; flex-direction: column;
-        transition: transform 0.2s;
+        transition: transform 0.2s, border-color 0.2s;
     }
     .agent-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-        border-color: #0071E3;
+        transform: translateY(-2px);
+        border-color: #00B4D8;
+        box-shadow: 0 8px 15px rgba(0, 180, 216, 0.15);
     }
 
-    /* 滚动条 */
+    /* 滚动条美化 */
     .agent-card::-webkit-scrollbar { width: 4px; }
-    .agent-card::-webkit-scrollbar-thumb { background: #D1D1D6; border-radius: 2px; }
+    .agent-card::-webkit-scrollbar-thumb { background: #4A5568; border-radius: 2px; }
+    .agent-card::-webkit-scrollbar-track { background: transparent; }
 
     /* 卡片头部 */
     .card-header { 
-        display: flex; align-items: center; gap: 12px;
-        margin-bottom: 16px; padding-bottom: 12px; 
-        border-bottom: 1px solid #F2F2F7;
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 12px; padding-bottom: 10px; 
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
+    .agent-info { display: flex; align-items: center; gap: 10px; }
     .avatar {
-        width: 48px; height: 48px;
+        width: 42px; height: 42px;
         border-radius: 50%;
         object-fit: cover;
-        border: 2px solid #F5F5F7;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 2px solid #2D3748;
     }
-    .agent-name { font-weight: 700; color: #1D1D1F; font-size: 1.05em; }
-    .agent-role { font-size: 0.75em; color: #86868B; font-weight: 500; }
+    .agent-name { font-weight: 700; color: #F0F0F0; font-size: 1em; }
+    .agent-role { font-size: 0.75em; color: #94A3B8; font-weight: 500; }
     
-    /* 模型标签 */
+    /* AI 模型标签 (醒目) */
     .model-badge { 
-        font-size: 0.65em; padding: 2px 8px; border-radius: 12px; 
-        background: #F2F2F7; color: #86868B; border: 1px solid #E5E5E5;
-        font-family: monospace;
+        font-size: 0.7em; padding: 3px 8px; border-radius: 4px; 
+        font-family: 'JetBrains Mono', monospace; font-weight: bold;
+        text-transform: uppercase; letter-spacing: 0.5px;
     }
+    .badge-gemini { background: rgba(59, 130, 246, 0.2); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .badge-deepseek { background: rgba(16, 185, 129, 0.2); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-qwen { background: rgba(245, 158, 11, 0.2); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.4); }
     
     /* 内容区域 */
     .card-content { 
-        font-size: 15px; line-height: 1.6; color: #424245; 
+        font-size: 14px; line-height: 1.6; color: #CBD5E1; 
         white-space: pre-wrap;
     }
     
-    /* 按钮优化 */
+    /* 按钮优化：霓虹蓝 */
     .stButton>button { 
-        background: #0071E3; color: white; border: none; 
-        font-weight: 600; border-radius: 10px; height: 45px; 
-        box-shadow: 0 4px 10px rgba(0, 113, 227, 0.3);
+        background: linear-gradient(90deg, #0077B6, #00B4D8);
+        color: white; border: none; 
+        font-weight: 600; border-radius: 8px; height: 45px; 
+        box-shadow: 0 0 10px rgba(0, 180, 216, 0.4);
+        transition: all 0.3s ease;
     }
-    .stButton>button:hover { background: #0077ED; transform: scale(1.01); }
+    .stButton>button:hover { 
+        transform: scale(1.02); 
+        box-shadow: 0 0 20px rgba(0, 180, 216, 0.6);
+    }
     
-    /* --- 作者署名 (修改：跟随页面滚动) --- */
+    /* 输入框样式 */
+    .stTextInput>div>div>input {
+        background-color: #1A202C;
+        color: white;
+        border: 1px solid #4A5568;
+        border-radius: 8px;
+    }
+    
+    /* --- 作者署名 (居中标题下方) --- */
+    .author-container {
+        text-align: center;
+        margin-top: -15px;
+        margin-bottom: 30px;
+    }
     .author-tag {
-        position: absolute; /* 改为 absolute，不再是 fixed */
-        top: -60px; /* 调整位置到顶部 */
-        right: 10px; 
-        z-index: 10;
-        background: rgba(255, 255, 255, 0.8);
-        border: 1px solid #E5E5E5;
-        padding: 4px 12px; 
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 4px 16px; 
         border-radius: 20px;
-        color: #86868B; 
-        font-size: 12px; 
-        font-weight: 600;
+        color: #94A3B8; 
+        font-size: 13px; 
+        font-weight: 500;
         font-family: "Microsoft YaHei", sans-serif;
-        backdrop-filter: blur(5px);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -220,19 +244,11 @@ def search_stock_realtime(keyword):
         res = requests.get(url, headers={'Referer': 'https://finance.sina.com.cn/'})
         content = res.content.decode('gbk', 'ignore')
         if '=""' in content: return None, None
-        
         data_str = content.split('="')[1].split('";')[0]
         parts = data_str.split(',')
-        
-        if len(parts) > 5:
-            full_code = parts[5] 
-            name = parts[4]      
-            return full_code, name
-            
+        if len(parts) > 5: return parts[5], parts[4]
         return None, None
-    except Exception as e:
-        print(f"Search Error: {e}")
-        return None, None
+    except: return None, None
 
 def get_realtime_data_tencent(symbol):
     """腾讯财经接口"""
@@ -246,8 +262,7 @@ def get_realtime_data_tencent(symbol):
         res = requests.get(url, timeout=5)
         content = res.content.decode('gbk', 'ignore')
         if 'v_pv_none' in content or len(content) < 20: return None, "无数据"
-        data_str = content.split('="')[1].split('";')[0]
-        data = data_str.split('~')
+        data = content.split('="')[1].split('";')[0].split('~')
         if len(data) < 30: return None, "数据异常"
         
         return {
@@ -267,29 +282,20 @@ def get_realtime_data_tencent(symbol):
             'high': float(data[33]), 'low': float(data[34]),
             'amount': float(data[37]) * 10000,
         }, None
-    except Exception as e:
-        return None, str(e)
+    except Exception as e: return None, str(e)
 
 def get_kline_data_eastmoney(symbol):
     try:
         clean_code = re.sub(r"[^0-9]", "", symbol)
         market = "1" if symbol.startswith("sh") or clean_code.startswith("6") else "0"
         secid = f"{market}.{clean_code}"
-        
         url = "http://push2his.eastmoney.com/api/qt/stock/kline/get"
-        params = {
-            "secid": secid, "fields1": "f1,f2,f3,f4,f5,f6", "fields2": "f51,f52,f53,f54,f55,f57",
-            "klt": "101", "fqt": "1", "end": "20500101", "lmt": "120"
-        }
+        params = {"secid": secid, "fields1": "f1,f2,f3,f4,f5,f6", "fields2": "f51,f52,f53,f54,f55,f57", "klt": "101", "fqt": "1", "end": "20500101", "lmt": "120"}
         res = requests.get(url, params=params, timeout=5)
         data = res.json()
         if data and data.get("data") and data["data"].get("klines"):
             klines = data["data"]["klines"]
-            parsed = []
-            for k in klines:
-                s = k.split(',')
-                parsed.append({"Date": s[0], "Open": float(s[1]), "Close": float(s[2]), 
-                               "High": float(s[3]), "Low": float(s[4]), "Volume": float(s[5])})
+            parsed = [{"Date": k.split(',')[0], "Open": float(k.split(',')[1]), "Close": float(k.split(',')[2]), "High": float(k.split(',')[3]), "Low": float(k.split(',')[4]), "Volume": float(k.split(',')[5])} for k in klines]
             return pd.DataFrame(parsed)
         return None
     except: return None
@@ -299,7 +305,6 @@ def get_min_data_eastmoney(symbol):
         clean_code = re.sub(r"[^0-9]", "", symbol)
         market = "1" if symbol.startswith("sh") or clean_code.startswith("6") else "0"
         secid = f"{market}.{clean_code}"
-        
         url = "http://push2his.eastmoney.com/api/qt/stock/trends2/get"
         params = {"secid": secid, "fields1": "f1,f2,f3,f4,f5,f6,f7,f8", "fields2": "f51,f53,f58"}
         res = requests.get(url, params=params, timeout=5)
@@ -309,12 +314,7 @@ def get_min_data_eastmoney(symbol):
             parsed = []
             for t in trends:
                 s = t.split(',')
-                time_str = s[0].split(' ')[1] if ' ' in s[0] else s[0]
-                parsed.append({
-                    "Time": time_str, 
-                    "Price": float(s[1]), 
-                    "Vol": float(s[2])
-                })
+                parsed.append({"Time": s[0].split(' ')[1] if ' ' in s[0] else s[0], "Price": float(s[1]), "Vol": float(s[2])})
             return pd.DataFrame(parsed)
         return None
     except: return None
@@ -330,73 +330,56 @@ def call_ai_api(prompt, system_prompt, provider, api_keys, gemini_model_name="ge
                 response = model.generate_content(f"【系统指令】\n{system_prompt}\n\n【用户任务】\n{prompt}")
                 return response.text
             except Exception as e:
-                if "404" in str(e) or "400" in str(e):
-                    try:
-                        model = genai.GenerativeModel("gemini-pro")
-                        res = model.generate_content(f"{system_prompt}\n{prompt}")
-                        return f"[自动降级 gemini-pro] {res.text}"
-                    except: return f"Gemini Error: {str(e)}"
                 return f"Gemini Error: {str(e)}"
-            
         elif provider == "DeepSeek":
             if not api_keys.get('deepseek'): return "⚠️ 缺 DeepSeek Key"
             from openai import OpenAI
             client = OpenAI(api_key=api_keys['deepseek'], base_url="https://api.deepseek.com")
-            resp = client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': prompt}],
-                temperature=0.1
-            )
+            resp = client.chat.completions.create(model="deepseek-chat", messages=[{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': prompt}])
             return resp.choices[0].message.content
-
         elif provider == "Qwen":
             if not api_keys.get('qwen'): return "⚠️ 缺 Qwen Key"
             from openai import OpenAI
-            # 兼容 OpenAI 格式调用 Qwen
             client = OpenAI(api_key=api_keys['qwen'], base_url="https://dashscope.aliyuncs.com/compatible-mode/v1")
-            resp = client.chat.completions.create(
-                model="qwen-plus",
-                messages=[{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': prompt}]
-            )
+            resp = client.chat.completions.create(model="qwen-plus", messages=[{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': prompt}])
             return resp.choices[0].message.content
-    except Exception as e:
-        return f"[{provider} Error] {str(e)}"
+    except Exception as e: return f"[{provider} Error] {str(e)}"
 
 # ==========================================
-# 3. 主界面逻辑 (Key 安全化 + UI 调整)
+# 3. 主界面逻辑
 # ==========================================
 
-# 独立的作者署名，随页面滚动
+# 1. 标题区（大标题 + 作者署名）
+st.markdown("<h1 style='text-align: center; color: #E2E8F0; font-size: 2.8em; margin-bottom: 0; text-shadow: 0 0 20px rgba(0,180,216,0.3);'>股票多智能体分析系统</h1>", unsafe_allow_html=True)
 st.markdown("""
-<div class="author-tag">
-    <span>👨‍💻</span>
-    <span>作者：红桥小胖侠</span>
+<div class="author-container">
+    <div class="author-tag">
+        <span>👨‍💻</span>
+        <span>作者：红桥小胖侠</span>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
+# 2. 侧边栏
 with st.sidebar:
     st.title("⚙️ 系统控制")
-    
-    # --- API Key 安全逻辑 ---
     secret_gemini = st.secrets.get("GEMINI_API_KEY", "")
     secret_deepseek = st.secrets.get("DEEPSEEK_API_KEY", "")
     secret_qwen = st.secrets.get("QWEN_API_KEY", "")
 
     with st.expander("🔑 API Key 设置", expanded=True):
-        st.caption("提示：若已配置云端 Secrets，此处留空即可。输入框内容优先。")
-        
-        user_gemini = st.text_input("Gemini Key", type="password", placeholder="留空则使用系统默认 Key")
-        user_deepseek = st.text_input("DeepSeek Key", type="password", placeholder="留空则使用系统默认 Key")
-        user_qwen = st.text_input("Qwen Key", type="password", placeholder="留空则使用系统默认 Key")
+        st.caption("优先使用云端 Secrets，此处留空即可。")
+        user_gemini = st.text_input("Gemini Key", type="password")
+        user_deepseek = st.text_input("DeepSeek Key", type="password")
+        user_qwen = st.text_input("Qwen Key", type="password")
 
         gemini_key = user_gemini if user_gemini else secret_gemini
         deepseek_key = user_deepseek if user_deepseek else secret_deepseek
         qwen_key = user_qwen if user_qwen else secret_qwen
         
-        # 状态指示灯 (修复：现在正确显示所有 Key 的状态)
-        if gemini_key: st.caption("✅ Gemini 已就绪")
-        if deepseek_key: st.caption("✅ DeepSeek 已就绪")
-        if qwen_key: st.caption("✅ Qwen 通义千问 已就绪")
+        if gemini_key: st.caption("✅ Gemini Ready")
+        if deepseek_key: st.caption("✅ DeepSeek Ready")
+        if qwen_key: st.caption("✅ Qwen Ready")
     
     st.markdown("---")
     st.subheader("🧠 模型调度")
@@ -413,15 +396,13 @@ with st.sidebar:
         cost_price = 0.0
         hold_vol = 0
 
-st.markdown("<h1 style='text-align: center; color: #0071E3;'>股票自动多智能分析系统</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #86868B; font-size: 14px;'>Institutional Grade Multi-Agent System v10.6</p>", unsafe_allow_html=True)
-
 if 'analysis_results' not in st.session_state: st.session_state.analysis_results = {}
 if 'market_context' not in st.session_state: st.session_state.market_context = None
 
+# 3. 搜索区
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    user_input = st.text_input("输入股票", value="600276", placeholder="代码(600276) / 名称(恒瑞) / 拼音(HRYY)", label_visibility="collapsed")
+    user_input = st.text_input("输入股票", value="600276", placeholder="代码 / 名称 / 拼音", label_visibility="collapsed")
     start_btn = st.button("🚀 启动分析委员会", use_container_width=True)
 
 if start_btn:
@@ -429,45 +410,44 @@ if start_btn:
     
     with st.status("🔍 正在搜索股票...", expanded=True) as status:
         search_code = user_input.strip()
-        
-        if re.match(r'^\d{6}$', search_code):
-            real_symbol = search_code 
-            stock_name = "查询中..."
-        else:
-            real_symbol, stock_name = search_stock_realtime(search_code)
+        if re.match(r'^\d{6}$', search_code): real_symbol, stock_name = search_code, "查询中..."
+        else: real_symbol, stock_name = search_stock_realtime(search_code)
         
         if not real_symbol:
-            if re.match(r'^[a-zA-Z]{2}\d{6}$', search_code):
-                real_symbol = search_code
-                stock_name = "直接代码"
-            else:
-                status.update(label="❌ 未找到股票", state="error")
-                st.error(f"未找到 '{user_input}' 对应的 A 股代码。请尝试直接输入 6 位代码。")
-                st.stop()
+            if re.match(r'^[a-zA-Z]{2}\d{6}$', search_code): real_symbol, stock_name = search_code, "直接代码"
+            else: status.update(label="❌ 未找到股票", state="error"); st.error("未找到股票"); st.stop()
             
         status.update(label=f"锁定标的: {stock_name} ({real_symbol})", state="running")
-
         stock_data, err = get_realtime_data_tencent(real_symbol)
-        if err: 
-            status.update(label="❌ 数据获取失败", state="error"); st.error(f"无法获取数据: {err}"); st.stop()
+        if err: status.update(label="❌ 数据获取失败", state="error"); st.error(f"Error: {err}"); st.stop()
         
         kline_df = get_kline_data_eastmoney(real_symbol)
         min_df = get_min_data_eastmoney(real_symbol)
         
+        # 头部行情数据
         change_amt = stock_data['now'] - stock_data['yestend']
         change_pct = (change_amt / stock_data['yestend'] * 100) if stock_data['yestend'] else 0
-        color_delta = "inverse" if change_amt < 0 else "normal"
+        color_val = "#FF3B30" if change_amt > 0 else "#00F0F0" # 同花顺红绿风格
         
         st.session_state.market_context = stock_data
         
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("当前价格", f"¥{stock_data['now']:.2f}", f"{change_pct:.2f}%", delta_color=color_delta)
+        k1.markdown(f"<div style='text-align:center; font-size:24px; font-weight:bold; color:{color_val}'>¥{stock_data['now']:.2f}<br><span style='font-size:16px'>{change_pct:+.2f}%</span></div>", unsafe_allow_html=True)
         k2.metric("成交量", f"{stock_data['volume']/10000:.0f}万手")
         k3.metric("最高", f"¥{stock_data['high']:.2f}")
         k4.metric("最低", f"¥{stock_data['low']:.2f}")
         
+        # --- 图表绘制 (模仿同花顺深色风格) ---
         tab1, tab2 = st.tabs(["📉 分时图 (实时)", "📊 K线图 (日线)"])
         
+        chart_layout_common = dict(
+            plot_bgcolor='#111111', paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#888'),
+            xaxis=dict(showgrid=True, gridcolor='#333', zeroline=False),
+            yaxis=dict(showgrid=True, gridcolor='#333', zeroline=False),
+            margin=dict(l=0, r=0, t=10, b=0)
+        )
+
         with tab1: 
             if min_df is not None and not min_df.empty:
                 yestend = stock_data['yestend']
@@ -475,66 +455,53 @@ if start_btn:
                 if max_diff == 0: max_diff = yestend * 0.01
                 y_range = [yestend - max_diff * 1.1, yestend + max_diff * 1.1]
 
-                fig_min = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
-                fig_min.add_trace(go.Scatter(
-                    x=min_df['Time'], y=min_df['Price'], mode='lines', name='价格', 
-                    line=dict(color='#0071E3', width=2), fill='tozeroy', fillcolor='rgba(0, 113, 227, 0.1)'
-                ), row=1, col=1)
-                fig_min.add_hline(y=yestend, line_dash="dash", line_color="#86868B", line_width=1, row=1, col=1)
+                fig_min = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
+                # 分时线 (黄色/白色)
+                fig_min.add_trace(go.Scatter(x=min_df['Time'], y=min_df['Price'], mode='lines', name='价格', line=dict(color='#FFFFFF', width=1.5), fill='tozeroy', fillcolor='rgba(255, 255, 255, 0.1)'), row=1, col=1)
+                fig_min.add_hline(y=yestend, line_dash="dash", line_color="#FF0000", line_width=1, row=1, col=1)
                 
-                colors = ['#FF3B30' if row['Price'] >= (min_df.iloc[i-1]['Price'] if i>0 else yestend) else '#34C759' for i, row in min_df.iterrows()]
+                # 成交量 (红涨绿跌)
+                colors = ['#FF3B30' if row['Price'] >= (min_df.iloc[i-1]['Price'] if i>0 else yestend) else '#00F0F0' for i, row in min_df.iterrows()]
                 fig_min.add_trace(go.Bar(x=min_df['Time'], y=min_df['Vol'], name='成交量', marker_color=colors), row=2, col=1)
 
-                fig_min.update_layout(
-                    height=380, margin=dict(l=0, r=0, t=10, b=0), 
-                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', 
-                    hovermode='x unified', showlegend=False, font=dict(color='#86868B'),
-                    yaxis=dict(range=y_range, tickformat=".2f", gridcolor='rgba(0,0,0,0.05)')
-                )
-                fig_min.update_xaxes(showgrid=False, zeroline=False, tickfont=dict(size=10))
-                fig_min.update_yaxes(showgrid=True, gridcolor='rgba(0,0,0,0.05)', zeroline=False, row=1, col=1)
-                fig_min.update_yaxes(showgrid=False, zeroline=False, row=2, col=1, showticklabels=False)
+                fig_min.update_layout(height=400, **chart_layout_common)
+                fig_min.update_yaxes(range=y_range, tickformat=".2f", row=1, col=1)
+                fig_min.update_yaxes(showticklabels=False, row=2, col=1)
+                fig_min.update_xaxes(showticklabels=False, row=1, col=1)
                 st.plotly_chart(fig_min, use_container_width=True)
             else: st.info("分时数据暂不可用")
             
         with tab2:
             if kline_df is not None:
-                fig_k = go.Figure(data=[go.Candlestick(
+                fig_k = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
+                # K线 (红涨绿跌)
+                fig_k.add_trace(go.Candlestick(
                     x=kline_df['Date'], open=kline_df['Open'], high=kline_df['High'], low=kline_df['Low'], close=kline_df['Close'],
-                    increasing_line_color='#FF3B30', decreasing_line_color='#34C759'
-                )])
-                fig_k.update_layout(xaxis_rangeslider_visible=False, height=380, margin=dict(l=0, r=0, t=10, b=0),
-                                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', 
-                                    xaxis=dict(showgrid=False, tickfont=dict(color='#86868B')), 
-                                    yaxis=dict(showgrid=True, gridcolor='rgba(0,0,0,0.05)', tickfont=dict(color='#86868B')))
+                    increasing_line_color='#FF3B30', decreasing_line_color='#00F0F0',
+                    increasing_fillcolor='#FF3B30', decreasing_fillcolor='#00F0F0'
+                ), row=1, col=1)
+                
+                # 成交量
+                colors_k = ['#FF3B30' if row['Close'] >= row['Open'] else '#00F0F0' for i, row in kline_df.iterrows()]
+                fig_k.add_trace(go.Bar(x=kline_df['Date'], y=kline_df['Volume'], marker_color=colors_k), row=2, col=1)
+                
+                fig_k.update_layout(height=400, xaxis_rangeslider_visible=False, showlegend=False, **chart_layout_common)
+                fig_k.update_xaxes(showticklabels=False, row=1, col=1)
+                fig_k.update_yaxes(showticklabels=False, row=2, col=1)
                 st.plotly_chart(fig_k, use_container_width=True)
             else: st.info("K线数据暂不可用")
 
-        # --- 盈亏计算的 0 值保护 ---
+        # Context Prep
         holding_info = "用户无持仓。"
-        if has_pos:
-            if cost_price > 0 and hold_vol > 0:
-                profit = (stock_data['now'] - cost_price) * hold_vol
-                profit_pct = (stock_data['now'] - cost_price) / cost_price * 100
-                holding_info = f"""
-                【重要：用户持仓信息】
-                - 持仓成本: {cost_price:.3f} 元
-                - 持仓股数: {hold_vol} 股
-                - 当前盈亏: {profit:.2f} 元 ({profit_pct:.2f}%)
-                - 你的决策必须明确：是建议止损离场、继续持有、还是补仓做T？
-                """
-            else:
-                holding_info = "用户已勾选持仓，但成本或股数为0，请忽略具体的盈亏数值，仅给出一般性操作建议。"
+        if has_pos and cost_price > 0 and hold_vol > 0:
+            profit = (stock_data['now'] - cost_price) * hold_vol
+            profit_pct = (stock_data['now'] - cost_price) / cost_price * 100
+            holding_info = f"用户持仓: 成本 {cost_price}，股数 {hold_vol}，盈亏 {profit:.2f} ({profit_pct:.2f}%)"
         
-        market_context = f"""
-        [标的] {stock_data['name']} ({real_symbol})
-        [现价] {stock_data['now']:.2f} (涨跌: {change_pct:.2f}%)
-        [成交] 量:{stock_data['volume']/100:.0f}手 / 额:{stock_data['amount']/10000:.0f}万
-        [五档] 买1:{stock_data['buy1_p']}({stock_data['buy1_v']}) ... 卖1:{stock_data['sell1_p']}({stock_data['sell1_v']})
-        {holding_info}
-        """
+        market_context = f"股票: {stock_data['name']}({real_symbol}) 现价: {stock_data['now']} 涨跌: {change_pct:.2f}% {holding_info}"
         status.update(label="✅ 数据准备就绪，开始分析", state="complete")
 
+    # AI Execution
     def run_agent(agent_key):
         cfg = AGENTS_CONFIG[agent_key]
         target_provider = cfg["provider"] if "混合" in mode else "DeepSeek"
@@ -542,71 +509,71 @@ if start_btn:
         return agent_key, res, target_provider
 
     st.session_state.analysis_results = {}
-    
-    with st.spinner("第一阶段：5位分析师正在并行分析..."):
+    with st.spinner("🚀 AI 委员会正在分析 (Gemini/DeepSeek 并行中)..."):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = [executor.submit(run_agent, key) for key in list(AGENTS_CONFIG.keys())[:5]]
             for f in concurrent.futures.as_completed(futures):
                 k, r, p = f.result()
                 st.session_state.analysis_results[k] = {"text": r, "provider": p}
+                
+    stage1_text = "\n".join([f"{AGENTS_CONFIG[k]['name']}: {v['text']}" for k, v in st.session_state.analysis_results.items()])
     
-    stage1_text = "\n".join([f"【{AGENTS_CONFIG[k]['name']}】: {v['text']}" for k, v in st.session_state.analysis_results.items()])
-    with st.spinner("第二阶段：总监正在整合..."):
+    with st.spinner("🔄 总监正在整合策略..."):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for k in ["manager_fundamental", "manager_momentum"]:
                 cfg = AGENTS_CONFIG[k]
                 target_provider = cfg["provider"] if "混合" in mode else "DeepSeek"
-                futures.append(executor.submit(call_ai_api, f"行情：\n{market_context}\n下属报告：\n{stage1_text}", cfg["prompt"], target_provider, api_key_set, gemini_model))
+                futures.append(executor.submit(call_ai_api, f"行情:{market_context}\n报告:{stage1_text}", cfg["prompt"], target_provider, api_key_set, gemini_model))
             res = [f.result() for f in futures]
             st.session_state.analysis_results["manager_fundamental"] = {"text": res[0], "provider": "DeepSeek"}
             st.session_state.analysis_results["manager_momentum"] = {"text": res[1], "provider": "DeepSeek"}
 
     stage2_text = stage1_text + "\n" + res[0] + "\n" + res[1]
-    with st.spinner("第三阶段：风控正在计算..."):
+    
+    with st.spinner("🛡️ 风控系统正在计算 (Qwen 介入)..."):
          with concurrent.futures.ThreadPoolExecutor() as executor:
              futures = []
              for k in ["risk_system", "risk_portfolio"]:
                 cfg = AGENTS_CONFIG[k]
-                # 注意：Risk System 强制使用了 Qwen，这里兼容一下
-                target_provider = cfg["provider"] if "混合" in mode and cfg["provider"] != "Gemini" else "DeepSeek"
-                # 修复逻辑：如果有明确指定Qwen且模式是混合，则使用Qwen，否则跟随主设定
-                if "混合" in mode and cfg["provider"] == "Qwen": target_provider = "Qwen"
+                # 逻辑修正：Risk System 强制用 Qwen
+                target_provider = cfg["provider"] if "混合" in mode else "DeepSeek"
+                if k == "risk_system" and "混合" in mode: target_provider = "Qwen"
                 
-                futures.append(executor.submit(call_ai_api, f"市场情况：\n{stage2_text}", cfg["prompt"], target_provider, api_key_set, gemini_model))
+                futures.append(executor.submit(call_ai_api, f"市场:{stage2_text}", cfg["prompt"], target_provider, api_key_set, gemini_model))
              res = [f.result() for f in futures]
              st.session_state.analysis_results["risk_system"] = {"text": res[0], "provider": "Qwen" if "混合" in mode else "DeepSeek"}
              st.session_state.analysis_results["risk_portfolio"] = {"text": res[1], "provider": "DeepSeek"}
 
     final_text = stage2_text + "\n" + res[0] + "\n" + res[1]
-    with st.spinner("第四阶段：总经理正在决策..."):
+    with st.spinner("👑 总经理最终决策..."):
         k = "general_manager"
         cfg = AGENTS_CONFIG[k]
         target_provider = cfg["provider"] if "混合" in mode else "DeepSeek"
-        res = call_ai_api(f"所有报告：\n{final_text}", cfg["prompt"], target_provider, api_key_set, gemini_model)
+        res = call_ai_api(f"所有报告:\n{final_text}", cfg["prompt"], target_provider, api_key_set, gemini_model)
         st.session_state.analysis_results[k] = {"text": res, "provider": target_provider}
     
     st.success("分析完成！")
 
+# 4. 渲染卡片
 def render_section(title, agent_keys, cols=1):
     st.subheader(title)
     columns = st.columns(cols)
     for i, key in enumerate(agent_keys):
         cfg = AGENTS_CONFIG[key]
         result_obj = st.session_state.analysis_results.get(key)
+        content = result_obj["text"] if result_obj else "等待指令..."
+        provider = result_obj["provider"] if result_obj else "OFFLINE"
+        if provider == "Gemini": provider = gemini_model.split("-")[0]
         
-        content = result_obj["text"] if result_obj else "等待分析指令..."
-        provider = result_obj["provider"] if result_obj else "Waiting"
-        if provider == "Gemini": provider = gemini_model 
-            
-        border_color = "rgba(0,0,0,0.05)"
-        if "risk" in key: border_color = "rgba(245, 158, 11, 0.4)"
-        if "manager" in key: border_color = "rgba(139, 92, 246, 0.5)"
-        if "general" in key: border_color = "#EF4444"
+        # 标签颜色类
+        badge_class = "badge-gemini"
+        if "DeepSeek" in provider: badge_class = "badge-deepseek"
+        if "Qwen" in provider: badge_class = "badge-qwen"
 
         with columns[i % cols]:
             st.markdown(f"""
-            <div class="agent-card" style="border-color: {border_color};">
+            <div class="agent-card">
                 <div class="card-header">
                     <div class="agent-info">
                         <img src="{cfg['avatar']}" class="avatar">
@@ -615,33 +582,32 @@ def render_section(title, agent_keys, cols=1):
                             <div class="agent-role">{cfg['role']}</div>
                         </div>
                     </div>
-                    <span class="model-badge {provider.split('-')[0].lower()}">{provider}</span>
+                    <span class="model-badge {badge_class}">{provider}</span>
                 </div>
                 <div class="card-content">{content}</div>
             </div>
             """, unsafe_allow_html=True)
 
-render_section("🔍 第一阶段：专业分析师", list(AGENTS_CONFIG.keys())[:5], cols=5)
-render_section("🧠 第二阶段：策略整合", ["manager_fundamental", "manager_momentum"], cols=2)
-render_section("🛡️ 第三阶段：风控评估", ["risk_system", "risk_portfolio"], cols=2)
+render_section("🔍 第一阶段：多维分析 (Gemini/DeepSeek)", list(AGENTS_CONFIG.keys())[:5], cols=5)
+render_section("🧠 第二阶段：策略博弈 (DeepSeek)", ["manager_fundamental", "manager_momentum"], cols=2)
+render_section("🛡️ 第三阶段：风控委员会 (Qwen/DeepSeek)", ["risk_system", "risk_portfolio"], cols=2)
 
 gm_res = st.session_state.analysis_results.get("general_manager")
-gm_text = gm_res["text"] if gm_res else "等待决策..."
-gm_prov = gm_res["provider"] if gm_res else "Waiting"
-st.markdown("---")
-st.subheader("🏆 第四阶段：最终决议")
-st.markdown(f"""
-<div style="background: #FFFFFF; border: 2px solid #FF3B30; border-radius: 18px; padding: 30px; box-shadow: 0 10px 30px rgba(255, 59, 48, 0.1);">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid rgba(255, 59, 48, 0.1); padding-bottom:15px;">
-        <div style="display:flex; align-items:center; gap:15px;">
-            <img src="{AGENTS_CONFIG['general_manager']['avatar']}" style="width:60px; height:60px; border-radius:50%; border:2px solid #FF3B30;">
-            <div>
-                <span style="font-size:1.5em; font-weight:bold; color:#1D1D1F;">👑 投资决策总经理</span>
-                <div style="color:#86868B; font-size:0.9em;">General Manager</div>
+if gm_res:
+    st.markdown("---")
+    st.subheader("🏆 最终决议")
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #1e1e24 0%, #2d1b2e 100%); border: 1px solid #FF3B30; border-radius: 18px; padding: 30px; box-shadow: 0 0 30px rgba(255, 59, 48, 0.2);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid rgba(255, 255, 255, 0.1); padding-bottom:15px;">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <img src="{AGENTS_CONFIG['general_manager']['avatar']}" style="width:60px; height:60px; border-radius:50%; border:2px solid #FF3B30;">
+                <div>
+                    <span style="font-size:1.5em; font-weight:bold; color:#FFFFFF;">👑 投资决策总经理</span>
+                    <div style="color:#A0A0A0; font-size:0.9em;">General Manager</div>
+                </div>
             </div>
+            <span class="model-badge badge-deepseek">DeepSeek V3</span>
         </div>
-        <span style="background:#FFF1F2; color:#FF3B30; padding:4px 12px; border-radius:99px; font-size:0.8em; border:1px solid #FECACA;">{gm_prov}</span>
+        <div style="font-size:1.1em; line-height:1.8; color:#E0E0E0; white-space: pre-wrap;">{gm_res['text']}</div>
     </div>
-    <div style="font-size:1.1em; line-height:1.8; color:#1D1D1F; white-space: pre-wrap;">{gm_text}</div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
