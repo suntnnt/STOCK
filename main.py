@@ -8,7 +8,7 @@ from datetime import datetime
 import re
 
 # ==========================================
-# 0. 页面配置与 UI 样式 (高对比度深色版)
+# 0. 页面配置与 UI 样式 (最终修复版)
 # ==========================================
 
 st.set_page_config(
@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 注入 CSS：修复侧边栏看不清的问题，优化全局对比度
+# 注入 CSS：修复侧边栏输入框白底白字问题
 st.markdown("""
 <style>
     /* --- 1. 全局深色背景 --- */
@@ -32,35 +32,42 @@ st.markdown("""
         color: #E2E8F0;
     }
 
-    /* --- 2. 侧边栏深度优化 (关键修复) --- */
+    /* --- 2. 侧边栏深度优化 --- */
     [data-testid="stSidebar"] {
         background-color: #111827 !important;
         border-right: 1px solid #374151;
     }
     
     /* 强制侧边栏所有文字颜色为高亮灰白 */
-    [data-testid="stSidebar"] h1, 
-    [data-testid="stSidebar"] h2, 
-    [data-testid="stSidebar"] h3, 
-    [data-testid="stSidebar"] span, 
-    [data-testid="stSidebar"] label, 
-    [data-testid="stSidebar"] p,
-    [data-testid="stSidebar"] div {
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, 
+    [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] div, [data-testid="stSidebar"] .stMarkdown {
         color: #E2E8F0 !important;
     }
     
-    /* 侧边栏说明文字 (Caption) */
+    /* 侧边栏说明文字 */
     [data-testid="stSidebar"] .stCaption {
         color: #94A3B8 !important;
     }
 
-    /* 侧边栏输入框美化：深底白字 */
+    /* --- [关键修复] 输入框样式强制覆盖 --- */
+    /* 针对所有文本输入框、密码框、数字框 */
     [data-testid="stSidebar"] input {
-        background-color: #1F2937 !important;
-        color: #FFFFFF !important;
-        border: 1px solid #4B5563 !important;
+        background-color: #374151 !important; /* 强制深灰色背景 */
+        color: #FFFFFF !important;             /* 强制纯白文字 */
+        border: 1px solid #6B7280 !important;  /* 明显的边框 */
+        caret-color: #FFFFFF !important;       /* 光标颜色 */
     }
     
+    /* 修复 Chrome/Edge 浏览器记住密码后自动变白的问题 */
+    [data-testid="stSidebar"] input:-webkit-autofill,
+    [data-testid="stSidebar"] input:-webkit-autofill:hover, 
+    [data-testid="stSidebar"] input:-webkit-autofill:focus, 
+    [data-testid="stSidebar"] input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px #374151 inset !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+    }
+
     /* --- 3. 主界面卡片 (高对比度) --- */
     .agent-card {
         background: rgba(31, 41, 55, 0.85);
@@ -81,7 +88,6 @@ st.markdown("""
         box-shadow: 0 10px 20px rgba(56, 189, 248, 0.1);
     }
     
-    /* 滚动条美化 */
     .agent-card::-webkit-scrollbar { width: 6px; }
     .agent-card::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 3px; }
     .agent-card::-webkit-scrollbar-track { background: transparent; }
@@ -112,13 +118,13 @@ st.markdown("""
     .badge-deepseek { background: rgba(5, 150, 105, 0.2); color: #34D399; border: 1px solid rgba(5, 150, 105, 0.5); }
     .badge-qwen { background: rgba(217, 119, 6, 0.2); color: #FBBF24; border: 1px solid rgba(217, 119, 6, 0.5); }
     
-    /* 卡片正文文字优化 */
+    /* 卡片正文 */
     .card-content { 
         font-size: 15px; line-height: 1.65; color: #E2E8F0; 
         white-space: pre-wrap;
     }
     
-    /* 按钮样式：霓虹渐变 */
+    /* 按钮样式 */
     .stButton>button { 
         background: linear-gradient(135deg, #0284c7, #0ea5e9);
         color: white; border: none; 
@@ -132,7 +138,7 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6);
     }
     
-    /* 主输入框 */
+    /* 主界面大输入框 */
     .stTextInput>div>div>input {
         background-color: #1F2937;
         color: #F8FAFC;
