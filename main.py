@@ -169,7 +169,7 @@ AGENTS_CONFIG = {
         "name": "系统性风险总监", 
         "role": "Risk Director",
         "avatar": "https://randomuser.me/api/portraits/men/90.jpg",
-        "provider": "DeepSeek",
+        "provider": "Qwen", 
         "prompt": "你是系统风险总监。风格：偏执理性。\n任务：找出所有可能崩盘的原因。\n输出Markdown列表(200字内)：\n- **崩盘风险**：[低/中/高]\n- **最大回撤预警**：(最坏情况)"
     },
     "risk_portfolio": {
@@ -352,6 +352,7 @@ def call_ai_api(prompt, system_prompt, provider, api_keys, gemini_model_name="ge
         elif provider == "Qwen":
             if not api_keys.get('qwen'): return "⚠️ 缺 Qwen Key"
             from openai import OpenAI
+            # 兼容 OpenAI 格式调用 Qwen
             client = OpenAI(api_key=api_keys['qwen'], base_url="https://dashscope.aliyuncs.com/compatible-mode/v1")
             resp = client.chat.completions.create(
                 model="qwen-plus",
@@ -376,10 +377,7 @@ st.markdown("""
 with st.sidebar:
     st.title("⚙️ 系统控制")
     
-    # --- [关键修改] API Key 安全逻辑 ---
-    # 逻辑：优先读取 Secrets，如果 Secrets 有值，输入框留空（保护隐私），如果用户强制输入，则覆盖 Secrets
-    
-    # 1. 尝试从 Secrets 获取
+    # --- API Key 安全逻辑 ---
     secret_gemini = st.secrets.get("GEMINI_API_KEY", "")
     secret_deepseek = st.secrets.get("DEEPSEEK_API_KEY", "")
     secret_qwen = st.secrets.get("QWEN_API_KEY", "")
@@ -387,19 +385,18 @@ with st.sidebar:
     with st.expander("🔑 API Key 设置", expanded=True):
         st.caption("提示：若已配置云端 Secrets，此处留空即可。输入框内容优先。")
         
-        # 输入框默认不显示 Secret，防止截图泄露
         user_gemini = st.text_input("Gemini Key", type="password", placeholder="留空则使用系统默认 Key")
         user_deepseek = st.text_input("DeepSeek Key", type="password", placeholder="留空则使用系统默认 Key")
         user_qwen = st.text_input("Qwen Key", type="password", placeholder="留空则使用系统默认 Key")
 
-        # 最终使用的 Key：用户输入 > Secret
         gemini_key = user_gemini if user_gemini else secret_gemini
         deepseek_key = user_deepseek if user_deepseek else secret_deepseek
         qwen_key = user_qwen if user_qwen else secret_qwen
         
-        # 状态指示灯
+        # 状态指示灯 (修复：现在正确显示所有 Key 的状态)
         if gemini_key: st.caption("✅ Gemini 已就绪")
         if deepseek_key: st.caption("✅ DeepSeek 已就绪")
+        if qwen_key: st.caption("✅ Qwen 通义千问 已就绪")
     
     st.markdown("---")
     st.subheader("🧠 模型调度")
@@ -413,12 +410,11 @@ with st.sidebar:
         cost_price = st.number_input("持仓成本", value=62.08, step=0.1, format="%.2f")
         hold_vol = st.number_input("持仓数量", value=1200, step=100)
     else:
-        # [关键修改] 无持仓时给予默认安全值，防止计算报错
         cost_price = 0.0
         hold_vol = 0
 
 st.markdown("<h1 style='text-align: center; color: #0071E3;'>股票自动多智能分析系统</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #86868B; font-size: 14px;'>Institutional Grade Multi-Agent System v10.5</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #86868B; font-size: 14px;'>Institutional Grade Multi-Agent System v10.6</p>", unsafe_allow_html=True)
 
 if 'analysis_results' not in st.session_state: st.session_state.analysis_results = {}
 if 'market_context' not in st.session_state: st.session_state.market_context = None
@@ -514,10 +510,9 @@ if start_btn:
                 st.plotly_chart(fig_k, use_container_width=True)
             else: st.info("K线数据暂不可用")
 
-        # --- [关键修改] 盈亏计算的 0 值保护 ---
+        # --- 盈亏计算的 0 值保护 ---
         holding_info = "用户无持仓。"
         if has_pos:
-            # 判断：只有当成本价 > 0 且 股数 > 0 时才计算
             if cost_price > 0 and hold_vol > 0:
                 profit = (stock_data['now'] - cost_price) * hold_vol
                 profit_pct = (stock_data['now'] - cost_price) / cost_price * 100
@@ -573,10 +568,14 @@ if start_btn:
              futures = []
              for k in ["risk_system", "risk_portfolio"]:
                 cfg = AGENTS_CONFIG[k]
-                target_provider = cfg["provider"] if "混合" in mode else "DeepSeek"
+                # 注意：Risk System 强制使用了 Qwen，这里兼容一下
+                target_provider = cfg["provider"] if "混合" in mode and cfg["provider"] != "Gemini" else "DeepSeek"
+                # 修复逻辑：如果有明确指定Qwen且模式是混合，则使用Qwen，否则跟随主设定
+                if "混合" in mode and cfg["provider"] == "Qwen": target_provider = "Qwen"
+                
                 futures.append(executor.submit(call_ai_api, f"市场情况：\n{stage2_text}", cfg["prompt"], target_provider, api_key_set, gemini_model))
              res = [f.result() for f in futures]
-             st.session_state.analysis_results["risk_system"] = {"text": res[0], "provider": "DeepSeek"}
+             st.session_state.analysis_results["risk_system"] = {"text": res[0], "provider": "Qwen" if "混合" in mode else "DeepSeek"}
              st.session_state.analysis_results["risk_portfolio"] = {"text": res[1], "provider": "DeepSeek"}
 
     final_text = stage2_text + "\n" + res[0] + "\n" + res[1]
