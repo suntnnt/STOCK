@@ -8,7 +8,7 @@ from datetime import datetime
 import re
 
 # ==========================================
-# 0. 页面配置与 UI 样式 (深色专业版)
+# 0. 页面配置与 UI 样式 (高对比度深色版)
 # ==========================================
 
 st.set_page_config(
@@ -18,35 +18,58 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 注入 CSS：深色渐变 + 科技线条 + 同花顺风格
+# 注入 CSS：修复侧边栏看不清的问题，优化全局对比度
 st.markdown("""
 <style>
-    /* 1. 全局背景：深色渐变 + 网格纹理 */
+    /* --- 1. 全局深色背景 --- */
     .stApp {
         background-color: #0E1117;
         background-image: 
-            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-            radial-gradient(circle at 50% 0%, #1e1e24 0%, #0E1117 80%);
-        background-size: 40px 40px, 40px 40px, 100% 100%;
-        color: #E0E0E0;
+            radial-gradient(circle at 50% 0%, #1F2937 0%, #0E1117 60%),
+            linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        background-size: 100% 100%, 40px 40px, 40px 40px;
+        color: #E2E8F0;
     }
-    
-    /* 2. 侧边栏：深灰磨砂 */
+
+    /* --- 2. 侧边栏深度优化 (关键修复) --- */
     [data-testid="stSidebar"] {
-        background-color: #161920 !important;
-        border-right: 1px solid #2D3748;
+        background-color: #111827 !important;
+        border-right: 1px solid #374151;
     }
     
-    /* 3. 卡片样式：深色毛玻璃 (Glassmorphism) */
+    /* 强制侧边栏所有文字颜色为高亮灰白 */
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3, 
+    [data-testid="stSidebar"] span, 
+    [data-testid="stSidebar"] label, 
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] div {
+        color: #E2E8F0 !important;
+    }
+    
+    /* 侧边栏说明文字 (Caption) */
+    [data-testid="stSidebar"] .stCaption {
+        color: #94A3B8 !important;
+    }
+
+    /* 侧边栏输入框美化：深底白字 */
+    [data-testid="stSidebar"] input {
+        background-color: #1F2937 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #4B5563 !important;
+    }
+    
+    /* --- 3. 主界面卡片 (高对比度) --- */
     .agent-card {
-        background: rgba(30, 34, 45, 0.7);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(31, 41, 55, 0.85);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
-        padding: 18px;
+        padding: 20px;
         margin-bottom: 16px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
         height: 360px;
         overflow-y: auto;
         display: flex; flex-direction: column;
@@ -54,84 +77,91 @@ st.markdown("""
     }
     .agent-card:hover {
         transform: translateY(-2px);
-        border-color: #00B4D8;
-        box-shadow: 0 8px 15px rgba(0, 180, 216, 0.15);
+        border-color: #38BDF8;
+        box-shadow: 0 10px 20px rgba(56, 189, 248, 0.1);
     }
-
+    
     /* 滚动条美化 */
-    .agent-card::-webkit-scrollbar { width: 4px; }
-    .agent-card::-webkit-scrollbar-thumb { background: #4A5568; border-radius: 2px; }
+    .agent-card::-webkit-scrollbar { width: 6px; }
+    .agent-card::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 3px; }
     .agent-card::-webkit-scrollbar-track { background: transparent; }
 
-    /* 卡片头部 */
+    /* 卡片头部布局 */
     .card-header { 
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 12px; padding-bottom: 10px; 
+        margin-bottom: 15px; padding-bottom: 12px; 
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .agent-info { display: flex; align-items: center; gap: 10px; }
+    .agent-info { display: flex; align-items: center; gap: 12px; }
     .avatar {
-        width: 42px; height: 42px;
+        width: 46px; height: 46px;
         border-radius: 50%;
         object-fit: cover;
-        border: 2px solid #2D3748;
+        border: 2px solid #374151;
     }
-    .agent-name { font-weight: 700; color: #F0F0F0; font-size: 1em; }
-    .agent-role { font-size: 0.75em; color: #94A3B8; font-weight: 500; }
+    .agent-name { font-weight: 700; color: #F8FAFC; font-size: 1.05em; }
+    .agent-role { font-size: 0.8em; color: #94A3B8; font-weight: 500; }
     
-    /* AI 模型标签 (醒目) */
+    /* AI 标签 */
     .model-badge { 
-        font-size: 0.7em; padding: 3px 8px; border-radius: 4px; 
-        font-family: 'JetBrains Mono', monospace; font-weight: bold;
-        text-transform: uppercase; letter-spacing: 0.5px;
+        font-size: 0.75em; padding: 4px 8px; border-radius: 6px; 
+        font-family: 'Consolas', monospace; font-weight: bold;
+        letter-spacing: 0.5px;
     }
-    .badge-gemini { background: rgba(59, 130, 246, 0.2); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.4); }
-    .badge-deepseek { background: rgba(16, 185, 129, 0.2); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.4); }
-    .badge-qwen { background: rgba(245, 158, 11, 0.2); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-gemini { background: rgba(37, 99, 235, 0.2); color: #60A5FA; border: 1px solid rgba(37, 99, 235, 0.5); }
+    .badge-deepseek { background: rgba(5, 150, 105, 0.2); color: #34D399; border: 1px solid rgba(5, 150, 105, 0.5); }
+    .badge-qwen { background: rgba(217, 119, 6, 0.2); color: #FBBF24; border: 1px solid rgba(217, 119, 6, 0.5); }
     
-    /* 内容区域 */
+    /* 卡片正文文字优化 */
     .card-content { 
-        font-size: 14px; line-height: 1.6; color: #CBD5E1; 
+        font-size: 15px; line-height: 1.65; color: #E2E8F0; 
         white-space: pre-wrap;
     }
     
-    /* 按钮优化：霓虹蓝 */
+    /* 按钮样式：霓虹渐变 */
     .stButton>button { 
-        background: linear-gradient(90deg, #0077B6, #00B4D8);
+        background: linear-gradient(135deg, #0284c7, #0ea5e9);
         color: white; border: none; 
-        font-weight: 600; border-radius: 8px; height: 45px; 
-        box-shadow: 0 0 10px rgba(0, 180, 216, 0.4);
+        font-weight: 700; border-radius: 8px; height: 50px; font-size: 16px;
+        box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
         transition: all 0.3s ease;
     }
     .stButton>button:hover { 
         transform: scale(1.02); 
-        box-shadow: 0 0 20px rgba(0, 180, 216, 0.6);
+        background: linear-gradient(135deg, #0369a1, #0284c7);
+        box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6);
     }
     
-    /* 输入框样式 */
+    /* 主输入框 */
     .stTextInput>div>div>input {
-        background-color: #1A202C;
-        color: white;
-        border: 1px solid #4A5568;
+        background-color: #1F2937;
+        color: #F8FAFC;
+        border: 1px solid #4B5563;
         border-radius: 8px;
+        height: 50px;
+        font-size: 18px;
+        text-align: center;
+        letter-spacing: 1px;
     }
-    
-    /* --- 作者署名 (居中标题下方) --- */
+
+    /* --- 作者署名 --- */
     .author-container {
         text-align: center;
-        margin-top: -15px;
-        margin-bottom: 30px;
+        margin-top: -20px;
+        margin-bottom: 35px;
+        position: relative;
+        z-index: 10;
     }
     .author-tag {
-        display: inline-flex; align-items: center; gap: 6px;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 4px 16px; 
-        border-radius: 20px;
+        display: inline-flex; align-items: center; gap: 8px;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        padding: 6px 20px; 
+        border-radius: 50px;
         color: #94A3B8; 
         font-size: 13px; 
-        font-weight: 500;
-        font-family: "Microsoft YaHei", sans-serif;
+        font-weight: 600;
+        backdrop-filter: blur(4px);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -159,7 +189,7 @@ AGENTS_CONFIG = {
         "role": "Funds Analyst",
         "avatar": "https://randomuser.me/api/portraits/men/85.jpg",
         "provider": "Gemini",
-        "prompt": "你是资金流向专家。输出风格：看穿对手盘。\n任务：分析五档盘口挂单，判断主力意图。\n输出Markdown列表(200字内)：\n- **资金意图**：[吸筹/吸盘/出货/观望]\n- **盘口密码**：(买一卖一挂单解读)\n- **短线合力**：[强/弱]"
+        "prompt": "你是资金流向专家。输出风格：看穿对手盘。\n任务：分析五档盘口挂单，判断主力意图。\n输出Markdown列表(200字内)：\n- **资金意图**：[吸筹/吸盘/出货/观望]\n- **盘口密码**：(重点解读买一卖一及下方五档托压单)\n- **短线合力**：[强/弱]"
     },
     "technical_analyst": {
         "name": "技术分析专家", 
@@ -251,7 +281,7 @@ def search_stock_realtime(keyword):
     except: return None, None
 
 def get_realtime_data_tencent(symbol):
-    """腾讯财经接口"""
+    """腾讯财经接口 - 获取完整五档数据"""
     code = symbol.lower()
     if not (code.startswith('sh') or code.startswith('sz')):
         if code.startswith('6'): code = f"sh{code}"
@@ -350,7 +380,7 @@ def call_ai_api(prompt, system_prompt, provider, api_keys, gemini_model_name="ge
 # ==========================================
 
 # 1. 标题区（大标题 + 作者署名）
-st.markdown("<h1 style='text-align: center; color: #E2E8F0; font-size: 2.8em; margin-bottom: 0; text-shadow: 0 0 20px rgba(0,180,216,0.3);'>股票多智能体分析系统</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #F8FAFC; font-size: 3em; margin-bottom: 0; text-shadow: 0 0 25px rgba(56,189,248,0.4); font-weight: 800;'>股票多智能体分析系统</h1>", unsafe_allow_html=True)
 st.markdown("""
 <div class="author-container">
     <div class="author-tag">
@@ -362,7 +392,9 @@ st.markdown("""
 
 # 2. 侧边栏
 with st.sidebar:
-    st.title("⚙️ 系统控制")
+    st.header("⚙️ 系统控制")
+    
+    # 优先读取 Secrets
     secret_gemini = st.secrets.get("GEMINI_API_KEY", "")
     secret_deepseek = st.secrets.get("DEEPSEEK_API_KEY", "")
     secret_qwen = st.secrets.get("QWEN_API_KEY", "")
@@ -377,9 +409,9 @@ with st.sidebar:
         deepseek_key = user_deepseek if user_deepseek else secret_deepseek
         qwen_key = user_qwen if user_qwen else secret_qwen
         
-        if gemini_key: st.caption("✅ Gemini Ready")
-        if deepseek_key: st.caption("✅ DeepSeek Ready")
-        if qwen_key: st.caption("✅ Qwen Ready")
+        if gemini_key: st.success("✅ Gemini Ready")
+        if deepseek_key: st.success("✅ DeepSeek Ready")
+        if qwen_key: st.success("✅ Qwen Ready")
     
     st.markdown("---")
     st.subheader("🧠 模型调度")
@@ -432,7 +464,7 @@ if start_btn:
         st.session_state.market_context = stock_data
         
         k1, k2, k3, k4 = st.columns(4)
-        k1.markdown(f"<div style='text-align:center; font-size:24px; font-weight:bold; color:{color_val}'>¥{stock_data['now']:.2f}<br><span style='font-size:16px'>{change_pct:+.2f}%</span></div>", unsafe_allow_html=True)
+        k1.markdown(f"<div style='text-align:center; font-size:26px; font-weight:800; color:{color_val}'>¥{stock_data['now']:.2f}<br><span style='font-size:16px; color:{color_val}'>{change_pct:+.2f}%</span></div>", unsafe_allow_html=True)
         k2.metric("成交量", f"{stock_data['volume']/10000:.0f}万手")
         k3.metric("最高", f"¥{stock_data['high']:.2f}")
         k4.metric("最低", f"¥{stock_data['low']:.2f}")
@@ -442,10 +474,11 @@ if start_btn:
         
         chart_layout_common = dict(
             plot_bgcolor='#111111', paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#888'),
-            xaxis=dict(showgrid=True, gridcolor='#333', zeroline=False),
-            yaxis=dict(showgrid=True, gridcolor='#333', zeroline=False),
-            margin=dict(l=0, r=0, t=10, b=0)
+            font=dict(color='#94A3B8'),
+            xaxis=dict(showgrid=True, gridcolor='#333333', zeroline=False),
+            yaxis=dict(showgrid=True, gridcolor='#333333', zeroline=False),
+            margin=dict(l=0, r=0, t=10, b=0),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
 
         with tab1: 
@@ -456,15 +489,15 @@ if start_btn:
                 y_range = [yestend - max_diff * 1.1, yestend + max_diff * 1.1]
 
                 fig_min = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
-                # 分时线 (黄色/白色)
-                fig_min.add_trace(go.Scatter(x=min_df['Time'], y=min_df['Price'], mode='lines', name='价格', line=dict(color='#FFFFFF', width=1.5), fill='tozeroy', fillcolor='rgba(255, 255, 255, 0.1)'), row=1, col=1)
-                fig_min.add_hline(y=yestend, line_dash="dash", line_color="#FF0000", line_width=1, row=1, col=1)
+                # 分时线 (亮黄色)
+                fig_min.add_trace(go.Scatter(x=min_df['Time'], y=min_df['Price'], mode='lines', name='价格', line=dict(color='#FFFF00', width=1.5), fill='tozeroy', fillcolor='rgba(255, 255, 0, 0.1)'), row=1, col=1)
+                fig_min.add_hline(y=yestend, line_dash="dash", line_color="#FF3B30", line_width=1, row=1, col=1)
                 
                 # 成交量 (红涨绿跌)
                 colors = ['#FF3B30' if row['Price'] >= (min_df.iloc[i-1]['Price'] if i>0 else yestend) else '#00F0F0' for i, row in min_df.iterrows()]
                 fig_min.add_trace(go.Bar(x=min_df['Time'], y=min_df['Vol'], name='成交量', marker_color=colors), row=2, col=1)
 
-                fig_min.update_layout(height=400, **chart_layout_common)
+                fig_min.update_layout(height=420, **chart_layout_common)
                 fig_min.update_yaxes(range=y_range, tickformat=".2f", row=1, col=1)
                 fig_min.update_yaxes(showticklabels=False, row=2, col=1)
                 fig_min.update_xaxes(showticklabels=False, row=1, col=1)
@@ -485,7 +518,7 @@ if start_btn:
                 colors_k = ['#FF3B30' if row['Close'] >= row['Open'] else '#00F0F0' for i, row in kline_df.iterrows()]
                 fig_k.add_trace(go.Bar(x=kline_df['Date'], y=kline_df['Volume'], marker_color=colors_k), row=2, col=1)
                 
-                fig_k.update_layout(height=400, xaxis_rangeslider_visible=False, showlegend=False, **chart_layout_common)
+                fig_k.update_layout(height=420, xaxis_rangeslider_visible=False, showlegend=False, **chart_layout_common)
                 fig_k.update_xaxes(showticklabels=False, row=1, col=1)
                 fig_k.update_yaxes(showticklabels=False, row=2, col=1)
                 st.plotly_chart(fig_k, use_container_width=True)
@@ -498,7 +531,28 @@ if start_btn:
             profit_pct = (stock_data['now'] - cost_price) / cost_price * 100
             holding_info = f"用户持仓: 成本 {cost_price}，股数 {hold_vol}，盈亏 {profit:.2f} ({profit_pct:.2f}%)"
         
-        market_context = f"股票: {stock_data['name']}({real_symbol}) 现价: {stock_data['now']} 涨跌: {change_pct:.2f}% {holding_info}"
+        # --- 拼接完整的五档盘口数据 (Fix for Funds Analyst) ---
+        bid_ask_str = (
+            f"卖5:{stock_data['sell5_p']}({stock_data['sell5_v']}) "
+            f"卖4:{stock_data['sell4_p']}({stock_data['sell4_v']}) "
+            f"卖3:{stock_data['sell3_p']}({stock_data['sell3_v']}) "
+            f"卖2:{stock_data['sell2_p']}({stock_data['sell2_v']}) "
+            f"卖1:{stock_data['sell1_p']}({stock_data['sell1_v']})\n"
+            f"----------------------\n"
+            f"买1:{stock_data['buy1_p']}({stock_data['buy1_v']}) "
+            f"买2:{stock_data['buy2_p']}({stock_data['buy2_v']}) "
+            f"买3:{stock_data['buy3_p']}({stock_data['buy3_v']}) "
+            f"买4:{stock_data['buy4_p']}({stock_data['buy4_v']}) "
+            f"买5:{stock_data['buy5_p']}({stock_data['buy5_v']})"
+        )
+
+        market_context = f"""
+        [标的] {stock_data['name']}({real_symbol})
+        [行情] 现价:{stock_data['now']} 涨跌:{change_pct:.2f}%
+        [五档盘口]
+        {bid_ask_str}
+        [持仓] {holding_info}
+        """
         status.update(label="✅ 数据准备就绪，开始分析", state="complete")
 
     # AI Execution
